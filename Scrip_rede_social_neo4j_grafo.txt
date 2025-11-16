@@ -1,0 +1,112 @@
+#Criação das Constrains
+CREATE CONSTRAINT IF NOT EXISTS for (u:Usuario) REQUIRE u.nome IS UNIQUE;
+CREATE CONSTRAINT IF NOT EXISTS for (p:Postagem) REQUIRE p.id IS UNIQUE;
+CREATE CONSTRAINT IF NOT EXISTS for (h:Hashtag) REQUIRE h.nome IS UNIQUE;
+
+#Criação dos usuarios
+CREATE (:Usuario {nome: "Alice"});
+CREATE (:Usuario {nome: "Bob"});
+CREATE (:Usuario {nome: "Carol"});
+
+#Criação das postagens
+CREATE (:Postagem {id: "p1", conteudo: "Adoro grafos!", data: date("2025-11-15")});
+CREATE (:Postagem {id: "p2", conteudo: "Neo4j é incrível!", data: date("2025-11-14")});
+CREATE (:Postagem {id: "p3", conteudo: "Cypher é elegante.", data: date("2025-11-13")});
+
+#Postagens
+UNWIND ["#grafos", "#neo4j", "#cypher"] AS tag
+CREATE (:Hashtag {nome: tag});
+
+
+#Relacionamentons - Postagens feitas por usuarios
+MATCH (u:Usuario {nome: "Alice"}), (p:Postagem {id: "p1"})
+MERGE (u)-[:POSTOU]->(p);
+
+MATCH (u:Usuario {nome: "Bob"}), (p:Postagem {id: "p2"})
+MERGE (u)-[:POSTOU]->(p);
+
+MATCH (u:Usuario {nome: "Carol"}), (p:Postagem {id: "p3"})
+MERGE (u)-[:POSTOU]->(p);
+
+#Curtidas
+MATCH (u:Usuario {nome: "Bob"}), (p:Postagem {id: "p1"})
+MERGE (u)-[:CURTIU]->(p);
+
+MATCH (u:Usuario {nome: "Carol"}), (p:Postagem {id: "p1"})
+MERGE (u)-[:CURTIU]->(p);
+
+MATCH (u:Usuario {nome: "Alice"}), (p:Postagem {id: "p2"})
+MERGE (u)-[:CURTIU]->(p);
+
+
+#Comentários
+MATCH (u:Usuario {nome: "Carol"}), (p:Postagem {id: "p2"})
+MERGE (u)-[:COMENTOU {texto: "Concordo totalmente!"}]->(p);
+
+#Segmentos
+MATCH (a:Usuario {nome: "Alice"}), (b:Usuario {nome: "Bob"})
+MERGE (a)-[:SEGUE]->(b);
+
+MATCH (b:Usuario {nome: "Bob"}), (c:Usuario {nome: "Carol"})
+MERGE (b)-[:SEGUE]->(c);
+
+
+#Hashtegs
+MATCH (p:Postagem {id: "p1"}), (h:Hashtag {nome: "#grafos"})
+MERGE (p)-[:USA_HASHTAG]->(h);
+
+MATCH (p:Postagem {id: "p2"}), (h:Hashtag {nome: "#neo4j"})
+MERGE (p)-[:USA_HASHTAG]->(h);
+
+MATCH (p:Postagem {id: "p3"}), (h:Hashtag {nome: "#cypher"})
+MERGE (p)-[:USA_HASHTAG]->(h);
+
+
+#### Consultas
+
+MATCH (u:Usuario)<-[:SEGUE]-(seguidor:Usuario)
+RETURN u.nome AS Influenciador, COUNT(seguidor) AS Seguidores
+ORDER BY Seguidores DESC;
+
+Retorno:
+1
+"Bob"
+1
+
+
+MATCH (p:Postagem)<-[:CURTIU]-(:Usuario), (p)-[:USA_HASHTAG]->(h:Hashtag)
+RETURN h.nome AS Hashtag, COUNT(*) AS Popularidade
+ORDER BY Popularidade DESC;
+
+
+1
+"#grafos"
+2
+2
+"#neo4j"
+1
+2
+"Carol"
+1
+
+
+MATCH (u1:Usuario)-[:CURTIU|COMENTOU]->(p:Postagem)<-[:CURTIU|COMENTOU]-(u2:Usuario)
+WHERE u1 <> u2
+RETURN DISTINCT u1.nome, u2.nome, p.id AS Postagem;
+
+
+"Carol"
+"Alice"
+"p2"
+2
+"Carol"
+"Bob"
+"p1"
+3
+"Bob"
+"Carol"
+"p1"
+4
+"Alice"
+"Carol"
+"p2"
